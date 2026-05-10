@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register | Tripo</title>
+  <link rel="icon" type="image/svg+xml" href="assets/tripo-logo.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="auth-body" data-page="register">
+  <main class="auth-layout">
+    <section class="auth-visual auth-visual-warm">
+      <a class="auth-brand" href="index.html">
+        <img class="auth-logo" src="assets/tripo-logo.svg" alt="Tripo logo">
+        <span>Tripo</span>
+      </a>
+      <p class="eyebrow">Register</p>
+      <h1>Create your profile and unlock safer social travel.</h1>
+      <p class="auth-copy">
+        Your account keeps your trip history, join requests, chats, ratings, and emergency contact details in one place.
+      </p>
+    </section>
+
+    <section class="auth-card auth-card-wide">
+      <div class="auth-card-top">
+        <h2>Build your traveler profile</h2>
+        <p>These details help Tripo feel closer to a real travel app flow.</p>
+      </div>
+
+      <form id="registerForm" class="stack-form">
+        <div class="field-grid">
+          <label>
+            Full name
+            <input type="text" name="name" placeholder="Your full name" required>
+          </label>
+          <label>
+            City
+            <input type="text" name="city" placeholder="Pune" required>
+          </label>
+        </div>
+        <div class="field-grid">
+          <label>
+            Email
+            <input type="email" name="email" placeholder="you@example.com" required>
+          </label>
+          <label>
+            Phone
+            <input type="tel" name="phone" placeholder="+91 98765 43210" required>
+          </label>
+        </div>
+        <div class="field-grid">
+          <label>
+            Gender
+            <select name="gender" required>
+              <option value="Woman">Woman</option>
+              <option value="Man">Man</option>
+              <option value="Non-binary">Non-binary</option>
+              <option value="Prefer not to say">Prefer not to say</option>
+            </select>
+          </label>
+          <label>
+            Emergency contact
+            <input type="text" name="emergencyContact" placeholder="Parent / Friend name + number" required>
+          </label>
+        </div>
+        <label>
+          Password
+          <input type="password" name="password" placeholder="Create a password" required minlength="6">
+        </label>
+        <button class="button" type="submit">Create account</button>
+      </form>
+
+      <p class="auth-footer">Already registered? <a href="login.html">Go to login</a></p>
+      <div id="registerMessage"></div>
+    </section>
+  </main>
+  <script src="vendor/supabase-js.min.js"></script>
+  <script src="config.js"></script>
+  <script src="tripo.js"></script>
+  <script src="register.js"></script>
+</body>
+</html>

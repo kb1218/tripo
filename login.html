@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Tripo</title>
+  <link rel="icon" type="image/svg+xml" href="assets/tripo-logo.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="auth-body" data-page="login">
+  <main class="auth-layout">
+    <section class="auth-visual">
+      <a class="auth-brand" href="index.html">
+        <img class="auth-logo" src="assets/tripo-logo.svg" alt="Tripo logo">
+        <span>Tripo</span>
+      </a>
+      <p class="eyebrow">Login first</p>
+      <h1>Start with your account, then explore your next travel circle.</h1>
+      <p class="auth-copy">
+        Tripo is built for solo travelers who want to create local plans, meet verified people, and coordinate safely before the trip starts.
+      </p>
+      <div class="auth-points">
+        <article><strong>Verified-first</strong><span>Profiles, safety controls, and reviews matter.</span></article>
+        <article><strong>Local trips</strong><span>Plan hikes, food walks, beach days, and heritage runs.</span></article>
+        <article><strong>Real flow</strong><span>Login, discover, create, join, chat, and review.</span></article>
+      </div>
+    </section>
+
+    <section class="auth-card">
+      <div class="auth-card-top">
+        <h2>Welcome back</h2>
+        <p>Login with your email and password.</p>
+      </div>
+
+      <form id="loginForm" class="stack-form">
+        <label>
+          Email
+          <input type="email" name="email" placeholder="you@example.com" required>
+        </label>
+        <label>
+          Password
+          <input type="password" name="password" placeholder="Enter your password" required>
+        </label>
+        <button class="button" type="submit">Login</button>
+      </form>
+
+      <p class="auth-footer"><a href="forgot-password.html">Forgot password?</a></p>
+      <p class="auth-footer">New to Tripo? <a href="register.html">Create an account</a></p>
+      <div id="loginMessage"></div>
+    </section>
+  </main>
+  <script src="vendor/supabase-js.min.js"></script>
+  <script src="config.js"></script>
+  <script src="tripo.js"></script>
+  <script src="login.js"></script>
+</body>
+</html>
