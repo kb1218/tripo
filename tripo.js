@@ -21,6 +21,7 @@
 
   let cachedProfile = null;
   let cachedAdminStatus = null;
+  let cachedUser = undefined;
 
   purgeLegacyStorage();
 
@@ -86,6 +87,8 @@
     }
 
     cachedProfile = null;
+    cachedUser = data.user || undefined;
+    cachedAdminStatus = null;
 
     if (!data.session) {
       return {
@@ -114,6 +117,8 @@
     }
 
     cachedProfile = null;
+    cachedUser = undefined;
+    cachedAdminStatus = null;
     return { ok: true };
   }
 
@@ -121,6 +126,7 @@
     if (client) {
       await client.auth.signOut();
     }
+    cachedUser = undefined;
     cachedProfile = null;
     cachedAdminStatus = null;
     window.location.href = "login.html";
@@ -130,8 +136,12 @@
     if (!client) {
       return null;
     }
+    if (cachedUser !== undefined) {
+      return cachedUser;
+    }
     const { data } = await client.auth.getUser();
-    return data.user || null;
+    cachedUser = data.user || null;
+    return cachedUser;
   }
 
   async function getProfile() {
@@ -243,7 +253,7 @@
           </a>
           <div class="user-chip">
             <strong>${escapeHtml(profile?.full_name || "Traveler")}</strong>
-            <span>${escapeHtml(profile?.city || "City not set")} • ${escapeHtml(profile?.phone || "")}</span>
+            <span>${escapeHtml(profile?.city || "City not set")} &bull; ${escapeHtml(profile?.phone || "")}</span>
           </div>
           <nav class="side-nav">
             ${navLink("dashboard.html", "Dashboard", "Your travel command center", activePage === "dashboard")}
@@ -627,6 +637,7 @@
     });
 
     cachedProfile = null;
+    cachedAdminStatus = null;
     return { ok: true, data: await getProfile() };
   }
 
@@ -709,6 +720,10 @@
       return { ok: false, error: error.message };
     }
     return { ok: true };
+  }
+
+  async function adminUpdateTrip(id, payload) {
+    return updateTrip(id, payload);
   }
 
   async function adminDeleteReport(id) {
@@ -821,6 +836,7 @@
     listAllReports,
     adminUpdateProfile,
     adminDeleteProfile,
-    adminDeleteReport
+    adminDeleteReport,
+    adminUpdateTrip
   };
 })();

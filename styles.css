@@ -606,6 +606,35 @@ textarea:focus {
   border: 1px solid rgba(27, 53, 86, 0.07);
 }
 
+.admin-table-wrap {
+  overflow: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 14px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(27, 53, 86, 0.08);
+  vertical-align: top;
+}
+
+.admin-table th {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-table tr.is-selected-row td {
+  background: rgba(40, 116, 235, 0.06);
+}
+
 .toast {
   position: fixed;
   right: 20px;
