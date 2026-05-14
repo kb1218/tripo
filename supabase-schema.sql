@@ -12,6 +12,11 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.admin_users (
+  email text primary key,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.trips (
   id uuid primary key default gen_random_uuid(),
   host_id uuid not null references public.profiles(id) on delete cascade,
@@ -225,6 +230,19 @@ as $$
   );
 $$;
 
+create or replace function private.is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public, private
+as $$
+  select exists (
+    select 1
+    from public.admin_users au
+    where lower(au.email) = lower(coalesce((auth.jwt() ->> 'email'), ''))
+  );
+$$;
+
 drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
 before update on public.profiles
@@ -266,6 +284,7 @@ before insert or update on public.trip_reports
 for each row execute function public.sync_reporter_name();
 
 alter table public.profiles enable row level security;
+alter table public.admin_users enable row level security;
 alter table public.trips enable row level security;
 alter table public.trip_members enable row level security;
 alter table public.trip_messages enable row level security;
@@ -279,6 +298,13 @@ for select
 to authenticated
 using ((select auth.uid()) = id);
 
+drop policy if exists "profiles_insert_own" on public.profiles;
+create policy "profiles_insert_own"
+on public.profiles
+for insert
+to authenticated
+with check ((select auth.uid()) = id);
+
 drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own"
 on public.profiles
@@ -287,12 +313,33 @@ to authenticated
 using ((select auth.uid()) = id)
 with check ((select auth.uid()) = id);
 
+drop policy if exists "profiles_admin_select_all" on public.profiles;
+create policy "profiles_admin_select_all"
+on public.profiles
+for select
+to authenticated
+using ((select private.is_admin()));
+
+drop policy if exists "admin_users_select_admins" on public.admin_users;
+create policy "admin_users_select_admins"
+on public.admin_users
+for select
+to authenticated
+using ((select private.is_admin()));
+
 drop policy if exists "trips_select_authenticated" on public.trips;
 create policy "trips_select_authenticated"
 on public.trips
 for select
 to authenticated
 using (true);
+
+drop policy if exists "trips_admin_select_all" on public.trips;
+create policy "trips_admin_select_all"
+on public.trips
+for select
+to authenticated
+using ((select private.is_admin()));
 
 drop policy if exists "trips_insert_own" on public.trips;
 create policy "trips_insert_own"
@@ -324,6 +371,13 @@ to authenticated
 using (
   (select private.can_access_trip_members(trip_members.trip_id))
 );
+
+drop policy if exists "trip_members_admin_select_all" on public.trip_members;
+create policy "trip_members_admin_select_all"
+on public.trip_members
+for select
+to authenticated
+using ((select private.is_admin()));
 
 drop policy if exists "trip_members_insert_self" on public.trip_members;
 create policy "trip_members_insert_self"
@@ -359,6 +413,13 @@ using (
   (select private.can_access_trip_members(trip_messages.trip_id))
 );
 
+drop policy if exists "trip_messages_admin_select_all" on public.trip_messages;
+create policy "trip_messages_admin_select_all"
+on public.trip_messages
+for select
+to authenticated
+using ((select private.is_admin()));
+
 drop policy if exists "trip_messages_insert_member_only" on public.trip_messages;
 create policy "trip_messages_insert_member_only"
 on public.trip_messages
@@ -375,6 +436,13 @@ on public.trip_reviews
 for select
 to authenticated
 using (true);
+
+drop policy if exists "trip_reviews_admin_select_all" on public.trip_reviews;
+create policy "trip_reviews_admin_select_all"
+on public.trip_reviews
+for select
+to authenticated
+using ((select private.is_admin()));
 
 drop policy if exists "trip_reviews_insert_own" on public.trip_reviews;
 create policy "trip_reviews_insert_own"
@@ -407,6 +475,13 @@ on public.trip_reports
 for select
 to authenticated
 using ((select auth.uid()) = reporter_id);
+
+drop policy if exists "trip_reports_admin_select_all" on public.trip_reports;
+create policy "trip_reports_admin_select_all"
+on public.trip_reports
+for select
+to authenticated
+using ((select private.is_admin()));
 
 drop policy if exists "trip_reports_insert_own" on public.trip_reports;
 create policy "trip_reports_insert_own"

@@ -20,6 +20,7 @@
       : null;
 
   let cachedProfile = null;
+  let cachedAdminStatus = null;
 
   purgeLegacyStorage();
 
@@ -147,13 +148,46 @@
       return null;
     }
 
-    const { data, error } = await client.from("profiles").select("*").eq("id", user.id).single();
-    if (error) {
+    let { data, error } = await client.from("profiles").select("*").eq("id", user.id).single();
+
+    if (error || !data) {
+      await ensureProfile();
+      const retry = await client.from("profiles").select("*").eq("id", user.id).single();
+      data = retry.data;
+      error = retry.error;
+    }
+
+    if (error || !data) {
       return null;
     }
 
     cachedProfile = data;
     return data;
+  }
+
+  async function ensureProfile() {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { ok: false, error: "No authenticated user found." };
+    }
+
+    const metadata = user.user_metadata || {};
+    const payload = {
+      id: user.id,
+      full_name: metadata.full_name || metadata.name || user.email?.split("@")[0] || "Traveler",
+      city: metadata.city || "Not set",
+      phone: metadata.phone || "Not set",
+      gender: metadata.gender || "Prefer not to say",
+      emergency_contact: metadata.emergency_contact || "Not set"
+    };
+
+    const { error } = await client.from("profiles").upsert(payload, { onConflict: "id" });
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+
+    cachedProfile = null;
+    return { ok: true };
   }
 
   async function requireAuth() {
@@ -179,6 +213,7 @@
 
   async function mountShell(activePage) {
     const profile = await getProfile();
+    const admin = await isAdmin();
     const root = document.querySelector("#appShell");
     if (!root) {
       return null;
@@ -214,6 +249,7 @@
             ${navLink("trips.html", "Discover Trips", "Browse local plans", activePage === "trips" || activePage === "trip-detail")}
             ${navLink("create-trip.html", "Create Trip", "Publish a new trip", activePage === "create-trip")}
             ${navLink("profile.html", "Profile", "Privacy and account details", activePage === "profile")}
+            ${admin ? navLink("admin.html", "Admin Console", "Users, trips, and reports", activePage === "admin") : ""}
           </nav>
           <div class="side-cta">
             <strong>Secure by design</strong>
@@ -304,6 +340,10 @@
 
   async function createTrip(payload) {
     const user = await getCurrentUser();
+    const ensured = await ensureProfile();
+    if (!ensured.ok) {
+      return { ok: false, error: ensured.error };
+    }
     const profile = await getProfile();
     const { data, error } = await client
       .from("trips")
@@ -526,6 +566,59 @@
     return { ok: true, data: await getProfile() };
   }
 
+  async function isAdmin() {
+    if (cachedAdminStatus !== null) {
+      return cachedAdminStatus;
+    }
+
+    const user = await getCurrentUser();
+    if (!user) {
+      cachedAdminStatus = false;
+      return false;
+    }
+
+    const { data, error } = await client
+      .from("admin_users")
+      .select("email")
+      .eq("email", user.email.toLowerCase())
+      .maybeSingle();
+
+    cachedAdminStatus = Boolean(data && !error);
+    return cachedAdminStatus;
+  }
+
+  async function requireAdmin() {
+    const admin = await isAdmin();
+    if (!admin) {
+      return false;
+    }
+    return true;
+  }
+
+  async function listAllProfiles() {
+    const { data, error } = await client.from("profiles").select("*").order("created_at", { ascending: false });
+    if (error) {
+      return { ok: false, error: error.message, data: [] };
+    }
+    return { ok: true, data: data || [] };
+  }
+
+  async function listAllTrips() {
+    const { data, error } = await client.from("trips").select("*").order("created_at", { ascending: false });
+    if (error) {
+      return { ok: false, error: error.message, data: [] };
+    }
+    return { ok: true, data: data || [] };
+  }
+
+  async function listAllReports() {
+    const { data, error } = await client.from("trip_reports").select("*").order("created_at", { ascending: false });
+    if (error) {
+      return { ok: false, error: error.message, data: [] };
+    }
+    return { ok: true, data: data || [] };
+  }
+
   async function getTripRecord(id) {
     const { data, error } = await client.from("trips").select("*").eq("id", id).single();
     if (error) {
@@ -615,6 +708,12 @@
     getTripRecord,
     updateTrip,
     deleteTrip,
-    reportTripIssue
+    reportTripIssue,
+    ensureProfile,
+    isAdmin,
+    requireAdmin,
+    listAllProfiles,
+    listAllTrips,
+    listAllReports
   };
 })();
