@@ -75,7 +75,7 @@
 })();
 
 function renderTripCard(trip) {
-  const chipClass = trip.visibility === "women-only" ? "chip-women" : "chip-safe";
+  const chipClass = trip.visibility === "women-only" ? "chip-women" : trip.visibility === "men-only" ? "chip-men" : "chip-safe";
   return `
     <article class="trip-item">
       <div class="trip-top">

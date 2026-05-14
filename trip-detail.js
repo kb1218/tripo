@@ -27,8 +27,10 @@ async function renderTripPage(tripId, mount) {
   const user = await window.Tripo.getCurrentUser();
   const profile = await window.Tripo.getProfile();
   const isHost = trip.host_id === user.id;
-  const chipClass = trip.visibility === "women-only" ? "chip-women" : "chip-safe";
+  const chipClass = trip.visibility === "women-only" ? "chip-women" : trip.visibility === "men-only" ? "chip-men" : "chip-safe";
   const seatsLeft = Math.max(trip.seats - participants.length, 0);
+  const emergencyPhone = window.Tripo.extractPhoneNumber(profile?.emergency_contact || "");
+  const showLocationShare = profile?.gender === "Woman" || trip.visibility === "women-only";
 
   mount.innerHTML = `
     <section class="hero-banner">
@@ -124,8 +126,15 @@ async function renderTripPage(tripId, mount) {
           </div>
         </div>
         <div class="list-stack">
-          <div class="list-row"><span>Your emergency contact</span><strong>${window.Tripo.escapeHtml(profile?.emergency_contact || "Not set")}</strong></div>
-          <div class="list-row"><span>Emergency number</span><a class="button-link" href="tel:112">Call 112</a></div>
+          <div class="list-row">
+            <span>Your emergency contact</span>
+            <div class="split-actions">
+              <strong>${window.Tripo.escapeHtml(profile?.emergency_contact || "Not set")}</strong>
+              ${emergencyPhone ? `<button id="callEmergencyContactBtn" class="button-link" type="button">Call contact</button>` : ""}
+            </div>
+          </div>
+          <div class="list-row"><span>Emergency service</span><button id="call112Btn" class="button-link" type="button">Call 112</button></div>
+          ${showLocationShare ? `<div class="list-row"><span>Women safety</span><button id="shareLocationBtn" class="button-link" type="button">Share location on WhatsApp</button></div>` : ""}
         </div>
       </article>
 
@@ -207,6 +216,23 @@ async function renderTripPage(tripId, mount) {
     }
     event.currentTarget.reset();
     window.Tripo.flash(document.querySelector("#reportMessage"), "success", "Report submitted.");
+  });
+
+  document.querySelector("#callEmergencyContactBtn")?.addEventListener("click", () => {
+    if (!window.Tripo.callNumber(profile?.emergency_contact || "")) {
+      window.Tripo.showToast("No valid emergency contact number found.");
+    }
+  });
+
+  document.querySelector("#call112Btn")?.addEventListener("click", () => {
+    window.Tripo.openEmergencyService();
+  });
+
+  document.querySelector("#shareLocationBtn")?.addEventListener("click", async () => {
+    const shareResult = await window.Tripo.shareLocationOnWhatsApp(profile?.emergency_contact || "", trip.title);
+    if (!shareResult.ok) {
+      window.Tripo.showToast(shareResult.error);
+    }
   });
 }
 

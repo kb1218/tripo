@@ -543,6 +543,11 @@ textarea:focus {
   color: var(--orange-deep);
 }
 
+.chip-men {
+  background: rgba(27, 53, 86, 0.12);
+  color: var(--ink);
+}
+
 .trip-title {
   font-size: 1.3rem;
 }

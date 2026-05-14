@@ -27,7 +27,7 @@ create table if not exists public.trips (
   trip_date date not null,
   interest text not null,
   vibe text not null,
-  visibility text not null check (visibility in ('mixed', 'women-only')),
+  visibility text not null check (visibility in ('mixed', 'women-only', 'men-only')),
   seats integer not null check (seats >= 2 and seats <= 20),
   description text not null,
   created_at timestamptz not null default now()

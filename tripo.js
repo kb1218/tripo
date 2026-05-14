@@ -498,7 +498,13 @@
   }
 
   function visibilityLabel(value) {
-    return value === "women-only" ? "Women only" : "Mixed group";
+    if (value === "women-only") {
+      return "Women only";
+    }
+    if (value === "men-only") {
+      return "Men only";
+    }
+    return "Mixed group";
   }
 
   function escapeHtml(value) {
@@ -512,6 +518,55 @@
 
   function getClient() {
     return client;
+  }
+
+  function extractPhoneNumber(value) {
+    const digits = String(value || "").replace(/[^\d+]/g, "");
+    return digits || "";
+  }
+
+  function callNumber(value) {
+    const phone = extractPhoneNumber(value);
+    if (!phone) {
+      return false;
+    }
+    window.location.href = `tel:${phone}`;
+    return true;
+  }
+
+  function openEmergencyService() {
+    window.location.href = "tel:112";
+  }
+
+  async function shareLocationOnWhatsApp(contactValue, tripTitle) {
+    const phone = extractPhoneNumber(contactValue);
+    if (!phone) {
+      return { ok: false, error: "No valid phone number was found in the emergency contact." };
+    }
+
+    if (!navigator.geolocation) {
+      return { ok: false, error: "Geolocation is not available in this browser." };
+    }
+
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
+      });
+    }).catch((error) => ({ error }));
+
+    if (position.error) {
+      return { ok: false, error: "Unable to get your current location. Please allow location access." };
+    }
+
+    const { latitude, longitude } = position.coords;
+    const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
+    const message = encodeURIComponent(
+      `SOS from Tripo${tripTitle ? ` for "${tripTitle}"` : ""}. My current location is: ${mapsLink}`
+    );
+    window.location.href = `https://wa.me/${phone}?text=${message}`;
+    return { ok: true };
   }
 
   async function requestPasswordReset(email) {
@@ -747,6 +802,10 @@
     hasBackendConfigured: () => configured,
     getClient,
     escapeHtml,
+    extractPhoneNumber,
+    callNumber,
+    openEmergencyService,
+    shareLocationOnWhatsApp,
     requestPasswordReset,
     updatePassword,
     updateProfile,

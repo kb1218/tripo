@@ -51,8 +51,10 @@
         <div class="list-stack">
           ${profilesResult.data.length ? profilesResult.data.map((profile) => `
             <div class="list-row">
-              <span>${window.Tripo.escapeHtml(profile.full_name)} • ${window.Tripo.escapeHtml(profile.city)}</span>
+              <span>${window.Tripo.escapeHtml(profile.full_name)} • ${window.Tripo.escapeHtml(profile.city)} • ${window.Tripo.escapeHtml(profile.emergency_contact || "No emergency contact")}</span>
               <div class="split-actions">
+                ${window.Tripo.extractPhoneNumber(profile.emergency_contact || "") ? `<button class="button-link" data-contact-call="${profile.id}">Call contact</button>` : ""}
+                <button class="button-link" data-call-112="${profile.id}">Call 112</button>
                 <button class="button-link" data-profile-edit="${profile.id}">Edit</button>
                 <button class="button-link" data-profile-delete="${profile.id}">Delete</button>
               </div>
@@ -150,6 +152,21 @@ function bindAdminActions(mount, profiles, trips) {
         return;
       }
       window.location.reload();
+    });
+  });
+
+  mount.querySelectorAll("[data-contact-call]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const profile = profiles.find((item) => item.id === button.dataset.contactCall);
+      if (!profile || !window.Tripo.callNumber(profile.emergency_contact || "")) {
+        window.Tripo.showToast("No valid emergency contact number found.");
+      }
+    });
+  });
+
+  mount.querySelectorAll("[data-call-112]").forEach((button) => {
+    button.addEventListener("click", () => {
+      window.Tripo.openEmergencyService();
     });
   });
 

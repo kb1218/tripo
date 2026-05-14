@@ -58,6 +58,7 @@
             <select name="visibility" required>
               <option value="mixed" ${trip.visibility === "mixed" ? "selected" : ""}>Mixed group</option>
               <option value="women-only" ${trip.visibility === "women-only" ? "selected" : ""}>Women only</option>
+              <option value="men-only" ${trip.visibility === "men-only" ? "selected" : ""}>Men only</option>
             </select>
           </label>
           <label>Trip vibe<input type="text" name="vibe" value="${window.Tripo.escapeHtml(trip.vibe)}" required></label>

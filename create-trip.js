@@ -40,6 +40,7 @@
             <select name="visibility" required>
               <option value="mixed">Mixed group</option>
               <option value="women-only">Women only</option>
+              <option value="men-only">Men only</option>
             </select>
           </label>
           <label>Trip vibe<input type="text" name="vibe" placeholder="Social, beginner friendly, budget-friendly" required></label>
