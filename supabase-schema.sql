@@ -80,19 +80,19 @@ create index if not exists trip_reports_trip_id_idx on public.trip_reports(trip_
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
-as $$
+as $set_updated_at$
 begin
   new.updated_at = now();
   return new;
 end;
-$$;
+$set_updated_at$;
 
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $handle_new_user$
 begin
   insert into public.profiles (
     id,
@@ -114,88 +114,88 @@ begin
 
   return new;
 end;
-$$;
+$handle_new_user$;
 
 create or replace function public.sync_trip_host_name()
 returns trigger
 language plpgsql
-as $$
+as $sync_trip_host_name$
 begin
   select full_name into new.host_name
   from public.profiles
   where id = new.host_id;
   return new;
 end;
-$$;
+$sync_trip_host_name$;
 
 create or replace function public.sync_member_name()
 returns trigger
 language plpgsql
-as $$
+as $sync_member_name$
 begin
   select full_name into new.member_name
   from public.profiles
   where id = new.user_id;
   return new;
 end;
-$$;
+$sync_member_name$;
 
 create or replace function public.sync_message_author_name()
 returns trigger
 language plpgsql
-as $$
+as $sync_message_author_name$
 begin
   select full_name into new.author_name
   from public.profiles
   where id = new.author_id;
   return new;
 end;
-$$;
+$sync_message_author_name$;
 
 create or replace function public.sync_review_author_name()
 returns trigger
 language plpgsql
-as $$
+as $sync_review_author_name$
 begin
   select full_name into new.author_name
   from public.profiles
   where id = new.author_id;
   return new;
 end;
-$$;
+$sync_review_author_name$;
 
 create or replace function public.sync_reporter_name()
 returns trigger
 language plpgsql
-as $$
+as $sync_reporter_name$
 begin
   select full_name into new.reporter_name
   from public.profiles
   where id = new.reporter_id;
   return new;
 end;
-$$;
+$sync_reporter_name$;
 
 create or replace function public.add_host_membership()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $add_host_membership$
 begin
   insert into public.trip_members (trip_id, user_id, member_name)
   values (new.id, new.host_id, new.host_name)
   on conflict (trip_id, user_id) do nothing;
   return new;
 end;
-$$;
+$add_host_membership$;
 
 create or replace function private.can_access_trip_members(target_trip_id uuid)
 returns boolean
 language sql
 security definer
 set search_path = public, private
-as $$
+as $can_access_trip_members$
   select exists (
     select 1
     from public.trips t
@@ -210,14 +210,14 @@ as $$
         )
       )
   );
-$$;
+$can_access_trip_members$;
 
 create or replace function private.trip_has_space(target_trip_id uuid)
 returns boolean
 language sql
 security definer
 set search_path = public, private
-as $$
+as $trip_has_space$
   select exists (
     select 1
     from public.trips t
@@ -228,20 +228,20 @@ as $$
         where tm.trip_id = target_trip_id
       ) < t.seats
   );
-$$;
+$trip_has_space$;
 
 create or replace function private.is_admin()
 returns boolean
 language sql
 security definer
 set search_path = public, private
-as $$
+as $is_admin$
   select exists (
     select 1
     from public.admin_users au
     where lower(au.email) = lower(coalesce((auth.jwt() ->> 'email'), ''))
   );
-$$;
+$is_admin$;
 
 drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
@@ -320,6 +320,21 @@ for select
 to authenticated
 using ((select private.is_admin()));
 
+drop policy if exists "profiles_admin_update_all" on public.profiles;
+create policy "profiles_admin_update_all"
+on public.profiles
+for update
+to authenticated
+using ((select private.is_admin()))
+with check ((select private.is_admin()));
+
+drop policy if exists "profiles_admin_delete_all" on public.profiles;
+create policy "profiles_admin_delete_all"
+on public.profiles
+for delete
+to authenticated
+using ((select private.is_admin()));
+
 drop policy if exists "admin_users_select_admins" on public.admin_users;
 create policy "admin_users_select_admins"
 on public.admin_users
@@ -362,6 +377,21 @@ on public.trips
 for delete
 to authenticated
 using ((select auth.uid()) = host_id);
+
+drop policy if exists "trips_admin_update_all" on public.trips;
+create policy "trips_admin_update_all"
+on public.trips
+for update
+to authenticated
+using ((select private.is_admin()))
+with check ((select private.is_admin()));
+
+drop policy if exists "trips_admin_delete_all" on public.trips;
+create policy "trips_admin_delete_all"
+on public.trips
+for delete
+to authenticated
+using ((select private.is_admin()));
 
 drop policy if exists "trip_members_select_member_or_host" on public.trip_members;
 create policy "trip_members_select_member_or_host"
@@ -480,6 +510,13 @@ drop policy if exists "trip_reports_admin_select_all" on public.trip_reports;
 create policy "trip_reports_admin_select_all"
 on public.trip_reports
 for select
+to authenticated
+using ((select private.is_admin()));
+
+drop policy if exists "trip_reports_admin_delete_all" on public.trip_reports;
+create policy "trip_reports_admin_delete_all"
+on public.trip_reports
+for delete
 to authenticated
 using ((select private.is_admin()));
 

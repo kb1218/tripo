@@ -122,6 +122,7 @@
       await client.auth.signOut();
     }
     cachedProfile = null;
+    cachedAdminStatus = null;
     window.location.href = "login.html";
   }
 
@@ -251,21 +252,17 @@
             ${navLink("profile.html", "Profile", "Privacy and account details", activePage === "profile")}
             ${admin ? navLink("admin.html", "Admin Console", "Users, trips, and reports", activePage === "admin") : ""}
           </nav>
-          <div class="side-cta">
-            <strong>Secure by design</strong>
-            <span>Authentication lives in Supabase Auth and data writes are protected by Row Level Security policies.</span>
-            <button class="button button-ghost" id="logoutBtn" type="button">Logout</button>
-          </div>
         </aside>
         <main class="app-main">
           <header class="topbar">
             <div>
               <strong>Never travel alone again.</strong>
-              <p>Real auth, protected pages, and server-enforced ownership rules.</p>
+              <p>Find your people, plan your trip, and travel together.</p>
             </div>
             <div class="topbar-actions">
               <a class="button button-secondary" href="create-trip.html">Create trip</a>
               <a class="button button-ghost" href="trips.html">Explore trips</a>
+              <button class="button button-ghost" id="logoutBtn" type="button">Logout</button>
             </div>
           </header>
           <div id="pageContent"></div>
@@ -342,9 +339,18 @@
     const user = await getCurrentUser();
     const ensured = await ensureProfile();
     if (!ensured.ok) {
-      return { ok: false, error: ensured.error };
+      return {
+        ok: false,
+        error: `Profile setup failed: ${ensured.error}. Re-run the latest supabase-schema.sql, then log out and log back in.`
+      };
     }
     const profile = await getProfile();
+    if (!profile) {
+      return {
+        ok: false,
+        error: "Your profile row is missing. Re-run the latest supabase-schema.sql and log in again."
+      };
+    }
     const { data, error } = await client
       .from("trips")
       .insert({
@@ -364,7 +370,10 @@
       .single();
 
     if (error) {
-      return { ok: false, error: error.message };
+      return {
+        ok: false,
+        error: `${error.message}. If this is your first trip attempt, re-run the latest supabase-schema.sql in Supabase and ensure your user exists in public.profiles.`
+      };
     }
 
     return { ok: true, data };
@@ -619,6 +628,42 @@
     return { ok: true, data: data || [] };
   }
 
+  async function adminUpdateProfile(id, payload) {
+    const { data, error } = await client
+      .from("profiles")
+      .update({
+        full_name: payload.fullName.trim(),
+        city: payload.city.trim(),
+        phone: payload.phone.trim(),
+        gender: payload.gender.trim(),
+        emergency_contact: payload.emergencyContact.trim()
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+    cachedProfile = null;
+    return { ok: true, data };
+  }
+
+  async function adminDeleteProfile(id) {
+    const { error } = await client.from("profiles").delete().eq("id", id);
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: true };
+  }
+
+  async function adminDeleteReport(id) {
+    const { error } = await client.from("trip_reports").delete().eq("id", id);
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: true };
+  }
+
   async function getTripRecord(id) {
     const { data, error } = await client.from("trips").select("*").eq("id", id).single();
     if (error) {
@@ -714,6 +759,9 @@
     requireAdmin,
     listAllProfiles,
     listAllTrips,
-    listAllReports
+    listAllReports,
+    adminUpdateProfile,
+    adminDeleteProfile,
+    adminDeleteReport
   };
 })();

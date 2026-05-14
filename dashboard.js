@@ -17,7 +17,7 @@
     <section class="hero-banner">
       <p class="eyebrow">Dashboard</p>
       <h1>Welcome back, ${window.Tripo.escapeHtml((profile?.full_name || "Traveler").split(" ")[0])}.</h1>
-      <p>Your account is protected by real authentication and database rules, and your next travel crew is ready when you are.</p>
+      <p>Your next travel crew is ready when you are.</p>
       <div class="hero-actions">
         <a class="button" href="trips.html">Discover trips</a>
         <a class="button button-secondary" href="create-trip.html">Create a trip</a>
@@ -32,30 +32,30 @@
 
     <section class="card-grid">
       <article class="app-panel">
-        <p class="eyebrow">Security</p>
-        <h3>What now protects your data</h3>
+        <p class="eyebrow">Quick actions</p>
+        <h3>Start using Tripo</h3>
         <div class="list-stack" style="margin-top:16px;">
-          <div class="list-row"><span>Authentication</span><strong>Supabase Auth</strong></div>
-          <div class="list-row"><span>Authorization</span><strong>Row Level Security</strong></div>
-          <div class="list-row"><span>Seeded sample data</span><strong>Removed</strong></div>
+          <div class="list-row"><span>Browse live trips</span><a class="button-link" href="trips.html">Open</a></div>
+          <div class="list-row"><span>Create your own trip</span><a class="button-link" href="create-trip.html">Create</a></div>
+          <div class="list-row"><span>Update profile</span><a class="button-link" href="profile.html">Profile</a></div>
         </div>
       </article>
       <article class="app-panel">
-        <p class="eyebrow">Privacy</p>
-        <h3>Trip chats and participant lists</h3>
+        <p class="eyebrow">Hosted by you</p>
+        <h3>Your trip activity</h3>
         <div class="list-stack" style="margin-top:16px;">
-          <div class="list-row"><span>Participants visible to</span><strong>Members and host only</strong></div>
-          <div class="list-row"><span>Chat visible to</span><strong>Members and host only</strong></div>
-          <div class="list-row"><span>Trip editing</span><strong>Host only</strong></div>
+          <div class="list-row"><span>Hosted trips</span><strong>${hostedTrips.length}</strong></div>
+          <div class="list-row"><span>Joined trips</span><strong>${joinedTrips.length}</strong></div>
+          <div class="list-row"><span>Home city</span><strong>${window.Tripo.escapeHtml(profile?.city || "Not set")}</strong></div>
         </div>
       </article>
       <article class="app-panel">
-        <p class="eyebrow">Account</p>
-        <h3>Your protected profile</h3>
+        <p class="eyebrow">Profile</p>
+        <h3>Your account</h3>
         <div class="list-stack" style="margin-top:16px;">
-          <div class="list-row"><span>Email</span><strong>${window.Tripo.escapeHtml(profile?.email || "")}</strong></div>
+          <div class="list-row"><span>Name</span><strong>${window.Tripo.escapeHtml(profile?.full_name || "")}</strong></div>
           <div class="list-row"><span>Phone</span><strong>${window.Tripo.escapeHtml(profile?.phone || "")}</strong></div>
-          <div class="list-row"><span>Emergency contact</span><strong>Stored per user</strong></div>
+          <div class="list-row"><span>Emergency contact</span><strong>${window.Tripo.escapeHtml(profile?.emergency_contact || "Not set")}</strong></div>
         </div>
       </article>
     </section>
