@@ -1,4 +1,4 @@
 window.TRIPO_CONFIG = {
   supabaseUrl: "https://nihoybpnvuhzqerggwko.supabase.co",
-  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5paG95YnBudnVoenFlcmdnd2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMzQ4MzIsImV4cCI6MjA5MzkxMDgzMn0.O6e2lVYFjlxLJ0lYd4_dou3adjjKJEzNS2P93S_cuhE"
+  supabaseAnonKey: "sb_publishable_gxqDGIUEaU3afgWdbE7k_A_AJ9KSsCL"
 };
