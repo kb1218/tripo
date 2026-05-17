@@ -29,7 +29,7 @@
     signup: "We could not create your account right now. Please review your details and try again.",
     session: "Your session has expired. Please log in again.",
     permission: "Your account is not allowed to do that right now.",
-    verified: "Please verify your email and phone number before using this feature.",
+    verified: "Please verify your email before using this feature.",
     createTrip: "We could not publish the trip right now. Please review the details and try again.",
     joinTrip: "We could not join this trip right now. Please check your verification status and trip eligibility.",
     profile: "We could not save your profile right now. Please try again.",
@@ -348,7 +348,7 @@
     return {
       emailVerified: Boolean(user?.email_confirmed_at),
       phoneVerified: Boolean(profile?.phone_verified),
-      isVerified: Boolean(user?.email_confirmed_at && profile?.phone_verified)
+      isVerified: Boolean(user?.email_confirmed_at)
     };
   }
 

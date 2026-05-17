@@ -307,7 +307,6 @@ as $profile_is_verified$
     from public.profiles p
     join auth.users u on u.id = p.id
     where p.id = target_user_id
-      and p.phone_verified = true
       and u.email_confirmed_at is not null
   );
 $profile_is_verified$;

@@ -37,7 +37,7 @@ async function renderTripPage(tripId, mount) {
   const emergencyPhone = window.Tripo.extractPhoneNumber(profile?.emergency_contact || "");
   const showLocationShare = profile?.gender === "Woman" || trip.visibility === "women-only";
   const joinBlockedReason = !verification.isVerified
-    ? "Verify your email and phone number first."
+    ? "Verify your email first."
     : compatibility.joinEligible === false
       ? compatibility.reason || "You are not eligible for this trip."
       : "";

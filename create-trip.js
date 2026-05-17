@@ -17,7 +17,7 @@
       ${
         verification.isVerified
           ? ""
-          : `<div class="flash flash-error">Trip creation unlocks only after email and phone verification. Finish it from your profile page.</div>`
+          : `<div class="flash flash-error">Trip creation unlocks only after email verification. Finish it from your profile page.</div>`
       }
 
       <form id="createTripForm" class="stack-form">

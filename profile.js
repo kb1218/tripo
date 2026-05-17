@@ -29,8 +29,8 @@
           <div class="profile-card-top"><strong>Name</strong><span>${window.Tripo.escapeHtml(profile?.full_name || "")}</span></div>
           <div class="profile-card-top"><strong>Email</strong><span>${window.Tripo.escapeHtml(user?.email || "")}</span></div>
           <div class="profile-card-top"><strong>Email status</strong><span>${verification.emailVerified ? "Verified" : "Verification pending"}</span></div>
-          <div class="profile-card-top"><strong>Phone status</strong><span>${verification.phoneVerified ? "Verified" : "Pending OTP verification"}</span></div>
           <div class="profile-card-top"><strong>Phone</strong><span>${window.Tripo.escapeHtml(profile?.phone || "")}</span></div>
+          <div class="profile-card-top"><strong>City</strong><span>${window.Tripo.escapeHtml(profile?.city || "")}</span></div>
           <div class="profile-card-top"><strong>Emergency contact</strong><span>${window.Tripo.escapeHtml(profile?.emergency_contact || "")}</span></div>
         </article>
 
@@ -47,32 +47,22 @@
       <div class="detail-grid">
         <article class="app-panel stack-panel">
           <p class="eyebrow">Verification</p>
-          <h3>Keep your account fully enabled</h3>
-          <p>${verification.isVerified ? "Your account is verified for trip creation, joining, and safety-based matching." : "Trip creation and joining stay locked until your email and phone are both verified."}</p>
+          <h3>Keep your account ready</h3>
+          <p>${verification.isVerified ? "Your account is verified for trip creation, joining, and safety-based matching." : "Verify your email to unlock trip creation and joining."}</p>
           <div class="list-stack">
             <div class="list-row"><span>Email verification</span><strong>${verification.emailVerified ? "Done" : "Pending"}</strong></div>
-            <div class="list-row"><span>Phone OTP verification</span><strong>${verification.phoneVerified ? "Done" : "Pending"}</strong></div>
+            <div class="list-row"><span>Phone</span><strong>Saved for safety contact use</strong></div>
           </div>
           ${
-            verification.phoneVerified
-              ? `<div class="flash flash-success">Your phone number is already verified.</div>`
-              : `
-                <form id="phoneOtpForm" class="stack-form" style="margin-top:16px;">
-                  <label>Phone number<input type="text" name="phone" value="${window.Tripo.escapeHtml(profile?.phone || "")}" required></label>
-                  <div class="split-actions">
-                    <button class="button button-secondary" id="sendOtpBtn" type="button">Send OTP</button>
-                    <input type="text" name="code" placeholder="Enter OTP" required>
-                    <button class="button" type="submit">Verify phone</button>
-                  </div>
-                </form>
-                <div id="phoneOtpMessage"></div>
-              `
+            verification.emailVerified
+              ? `<div class="flash flash-success">Your email verification is complete.</div>`
+              : `<div class="flash flash-error">Open the verification email from Tripo, then log in again once it is confirmed.</div>`
           }
         </article>
 
         <article class="app-panel stack-panel">
           <p class="eyebrow">AI summary</p>
-          <h3>${insights.safetyHeadline || "Your traveler summary"}</h3>
+          <h3>${window.Tripo.escapeHtml(insights.safetyHeadline || "Your traveler summary")}</h3>
           <p>${window.Tripo.escapeHtml(insights.summary || profile?.ai_summary || "Your AI travel profile will appear here after your account is analyzed.")}</p>
           <div class="list-stack">
             ${(insights.highlights || []).map((item) => `<div class="list-row"><span>${window.Tripo.escapeHtml(item)}</span><strong>AI</strong></div>`).join("")}
@@ -170,31 +160,6 @@
     }
 
     window.Tripo.flash(document.querySelector("#profileMessage"), "success", "Profile updated.");
-  });
-
-  document.querySelector("#sendOtpBtn")?.addEventListener("click", async () => {
-    const form = document.querySelector("#phoneOtpForm");
-    const phone = new FormData(form).get("phone");
-    const result = await window.Tripo.startPhoneVerification(phone);
-    window.Tripo.flash(
-      document.querySelector("#phoneOtpMessage"),
-      result.ok ? "success" : "error",
-      result.ok ? result.message : result.error
-    );
-  });
-
-  document.querySelector("#phoneOtpForm")?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const result = await window.Tripo.verifyPhoneOtp(formData.get("phone"), formData.get("code"));
-    window.Tripo.flash(
-      document.querySelector("#phoneOtpMessage"),
-      result.ok ? "success" : "error",
-      result.ok ? result.message : result.error
-    );
-    if (result.ok) {
-      setTimeout(() => window.location.reload(), 500);
-    }
   });
 })();
 

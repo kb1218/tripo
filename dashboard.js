@@ -33,9 +33,9 @@
         : `
           <section class="app-panel">
             <p class="eyebrow">Action needed</p>
-            <h3>Finish verification to unlock trip creation and joining</h3>
-            <p>Email verified: ${verification.emailVerified ? "Yes" : "No"} | Phone verified: ${verification.phoneVerified ? "Yes" : "No"}</p>
-            <a class="button" href="profile.html?verifyPhone=1">Open verification</a>
+            <h3>Verify your email to unlock trip creation and joining</h3>
+            <p>Email verified: ${verification.emailVerified ? "Yes" : "No"}</p>
+            <a class="button" href="profile.html">Open profile</a>
           </section>
         `
     }
@@ -79,7 +79,7 @@
         <form id="tripPlannerForm" class="stack-form" style="margin-top:14px;">
           <div class="form-grid">
             <label>City<input type="text" name="city" value="${window.Tripo.escapeHtml(profile?.city || "Pune")}" required></label>
-            <label>Budget<input type="text" name="budget" placeholder="Under ₹1500" required></label>
+            <label>Budget<input type="text" name="budget" placeholder="Under INR 1500" required></label>
           </div>
           <div class="form-grid">
             <label>Duration<input type="text" name="duration" placeholder="1 day" required></label>

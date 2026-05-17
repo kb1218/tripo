@@ -6,7 +6,7 @@ Tripo is a multi-page social travel web app with:
 - Supabase Postgres + RLS for protected data access
 - Admin console with user, trip, and report management
 - AI travel matching, safety scoring, chat moderation, trip planning, risk signals, and profile summaries
-- Phone OTP verification through Twilio Verify
+- Optional phone OTP verification through Twilio Verify
 - Vercel-ready serverless APIs for all secret-backed features
 
 ## What is production-ready in this version
@@ -60,7 +60,7 @@ on conflict (email) do nothing;
 
 ## Twilio phone OTP setup
 
-Tripo now expects phone verification before users create or join trips.
+Phone OTP is optional in the current live flow. Email verification is the required gate for creating or joining trips.
 
 1. Create a Twilio account.
 2. Open `Verify`.

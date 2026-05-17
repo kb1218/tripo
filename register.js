@@ -42,16 +42,13 @@
       return;
     }
 
-    const phoneVerification = await window.Tripo.startPhoneVerification(formData.get("phone"));
     window.Tripo.flash(
       registerMessage,
       "success",
-      phoneVerification.ok
-        ? "Account created. We sent a phone OTP too. Complete verification from your profile page."
-        : "Account created. Open your profile page after login to verify your phone number."
+      "Account created. Verify your email, then log in to start using Tripo."
     );
     setTimeout(() => {
-      window.location.href = "profile.html?verifyPhone=1";
+      window.location.href = "login.html";
     }, 400);
   });
 })();
