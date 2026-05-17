@@ -8,16 +8,19 @@
   const user = await window.Tripo.getCurrentUser();
   const hostedResult = await window.Tripo.listTrips({ hostOnly: true });
   const joinedResult = await window.Tripo.listTrips({ joinedOnly: true });
+  const insightResult = await window.Tripo.getProfileInsights();
+  const verification = await window.Tripo.getVerificationStatus();
 
   const hostedTrips = hostedResult.data || [];
   const joinedTrips = joinedResult.data || [];
+  const insights = insightResult.ok ? insightResult.data : {};
 
   mount.innerHTML = `
     <section class="page-section">
       <div class="section-head">
         <div>
           <p class="eyebrow">Profile</p>
-          <h2>Your account and privacy details</h2>
+          <h2>Your account and travel identity</h2>
         </div>
       </div>
 
@@ -25,19 +28,55 @@
         <article class="app-panel stack-panel">
           <div class="profile-card-top"><strong>Name</strong><span>${window.Tripo.escapeHtml(profile?.full_name || "")}</span></div>
           <div class="profile-card-top"><strong>Email</strong><span>${window.Tripo.escapeHtml(user?.email || "")}</span></div>
-          <div class="profile-card-top"><strong>Email status</strong><span>${user?.email_confirmed_at ? "Verified" : "Verification pending"}</span></div>
+          <div class="profile-card-top"><strong>Email status</strong><span>${verification.emailVerified ? "Verified" : "Verification pending"}</span></div>
+          <div class="profile-card-top"><strong>Phone status</strong><span>${verification.phoneVerified ? "Verified" : "Pending OTP verification"}</span></div>
           <div class="profile-card-top"><strong>Phone</strong><span>${window.Tripo.escapeHtml(profile?.phone || "")}</span></div>
-          <div class="profile-card-top"><strong>City</strong><span>${window.Tripo.escapeHtml(profile?.city || "")}</span></div>
-          <div class="profile-card-top"><strong>Gender</strong><span>${window.Tripo.escapeHtml(profile?.gender || "")}</span></div>
           <div class="profile-card-top"><strong>Emergency contact</strong><span>${window.Tripo.escapeHtml(profile?.emergency_contact || "")}</span></div>
         </article>
 
         <article class="app-panel stack-panel">
           <div class="profile-card-top"><strong>Hosted trips</strong><span>${hostedTrips.length}</span></div>
           <div class="profile-card-top"><strong>Joined trips</strong><span>${joinedTrips.length}</span></div>
-          <div class="profile-card-top"><strong>Who can edit your trips</strong><span>You only</span></div>
-          <div class="profile-card-top"><strong>Who can read trip chat</strong><span>Members only</span></div>
-          <div class="profile-card-top"><strong>Who can read your profile row</strong><span>You only</span></div>
+          <div class="profile-card-top"><strong>AI safety score</strong><span>${insights.safetyScore ?? profile?.safety_score ?? 50}/100</span></div>
+          <div class="profile-card-top"><strong>Travel style</strong><span>${window.Tripo.escapeHtml(profile?.personality_style || "Balanced")}</span></div>
+          <div class="profile-card-top"><strong>Budget band</strong><span>${window.Tripo.escapeHtml(profile?.budget_band || "Budget")}</span></div>
+          <div class="profile-card-top"><strong>Adventure level</strong><span>${window.Tripo.escapeHtml(String(profile?.adventure_level || 3))}/5</span></div>
+        </article>
+      </div>
+
+      <div class="detail-grid">
+        <article class="app-panel stack-panel">
+          <p class="eyebrow">Verification</p>
+          <h3>Keep your account fully enabled</h3>
+          <p>${verification.isVerified ? "Your account is verified for trip creation, joining, and safety-based matching." : "Trip creation and joining stay locked until your email and phone are both verified."}</p>
+          <div class="list-stack">
+            <div class="list-row"><span>Email verification</span><strong>${verification.emailVerified ? "Done" : "Pending"}</strong></div>
+            <div class="list-row"><span>Phone OTP verification</span><strong>${verification.phoneVerified ? "Done" : "Pending"}</strong></div>
+          </div>
+          ${
+            verification.phoneVerified
+              ? `<div class="flash flash-success">Your phone number is already verified.</div>`
+              : `
+                <form id="phoneOtpForm" class="stack-form" style="margin-top:16px;">
+                  <label>Phone number<input type="text" name="phone" value="${window.Tripo.escapeHtml(profile?.phone || "")}" required></label>
+                  <div class="split-actions">
+                    <button class="button button-secondary" id="sendOtpBtn" type="button">Send OTP</button>
+                    <input type="text" name="code" placeholder="Enter OTP" required>
+                    <button class="button" type="submit">Verify phone</button>
+                  </div>
+                </form>
+                <div id="phoneOtpMessage"></div>
+              `
+          }
+        </article>
+
+        <article class="app-panel stack-panel">
+          <p class="eyebrow">AI summary</p>
+          <h3>${insights.safetyHeadline || "Your traveler summary"}</h3>
+          <p>${window.Tripo.escapeHtml(insights.summary || profile?.ai_summary || "Your AI travel profile will appear here after your account is analyzed.")}</p>
+          <div class="list-stack">
+            ${(insights.highlights || []).map((item) => `<div class="list-row"><span>${window.Tripo.escapeHtml(item)}</span><strong>AI</strong></div>`).join("")}
+          </div>
         </article>
       </div>
 
@@ -57,7 +96,36 @@
                 </select>
               </label>
             </div>
+            <div class="form-grid">
+              <label>Age range
+                <select name="ageRange" required>
+                  ${["18-24", "25-34", "35-44", "45+"].map((option) => `<option value="${option}" ${profile?.age_range === option ? "selected" : ""}>${option}</option>`).join("")}
+                </select>
+              </label>
+              <label>Budget band
+                <select name="budgetBand" required>
+                  ${["Budget", "Mid-range", "Premium"].map((option) => `<option value="${option}" ${profile?.budget_band === option ? "selected" : ""}>${option}</option>`).join("")}
+                </select>
+              </label>
+            </div>
+            <div class="form-grid">
+              <label>Travel frequency
+                <select name="travelFrequency" required>
+                  ${["Rarely", "Occasional", "Monthly", "Frequent"].map((option) => `<option value="${option}" ${profile?.travel_frequency === option ? "selected" : ""}>${option}</option>`).join("")}
+                </select>
+              </label>
+              <label>Personality style
+                <select name="personalityStyle" required>
+                  ${["Calm", "Balanced", "Outgoing", "Spontaneous"].map((option) => `<option value="${option}" ${profile?.personality_style === option ? "selected" : ""}>${option}</option>`).join("")}
+                </select>
+              </label>
+            </div>
+            <div class="form-grid">
+              <label>Adventure level<input type="range" name="adventureLevel" min="1" max="5" value="${Number(profile?.adventure_level || 3)}"></label>
+              <label>Travel interests<input type="text" name="travelInterests" value="${window.Tripo.escapeHtml(profile?.travel_interests || "")}" required></label>
+            </div>
             <label>Emergency contact<input type="text" name="emergencyContact" value="${window.Tripo.escapeHtml(profile?.emergency_contact || "")}" required></label>
+            <label>Bio<textarea name="bio" rows="4" required>${window.Tripo.escapeHtml(profile?.bio || "")}</textarea></label>
             <button class="button" type="submit">Save profile</button>
           </form>
           <div id="profileMessage"></div>
@@ -86,7 +154,14 @@
       city: formData.get("city"),
       phone: formData.get("phone"),
       gender: formData.get("gender"),
-      emergencyContact: formData.get("emergencyContact")
+      emergencyContact: formData.get("emergencyContact"),
+      ageRange: formData.get("ageRange"),
+      budgetBand: formData.get("budgetBand"),
+      travelFrequency: formData.get("travelFrequency"),
+      personalityStyle: formData.get("personalityStyle"),
+      adventureLevel: formData.get("adventureLevel"),
+      travelInterests: formData.get("travelInterests"),
+      bio: formData.get("bio")
     });
 
     if (!updateResult.ok) {
@@ -95,6 +170,31 @@
     }
 
     window.Tripo.flash(document.querySelector("#profileMessage"), "success", "Profile updated.");
+  });
+
+  document.querySelector("#sendOtpBtn")?.addEventListener("click", async () => {
+    const form = document.querySelector("#phoneOtpForm");
+    const phone = new FormData(form).get("phone");
+    const result = await window.Tripo.startPhoneVerification(phone);
+    window.Tripo.flash(
+      document.querySelector("#phoneOtpMessage"),
+      result.ok ? "success" : "error",
+      result.ok ? result.message : result.error
+    );
+  });
+
+  document.querySelector("#phoneOtpForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const result = await window.Tripo.verifyPhoneOtp(formData.get("phone"), formData.get("code"));
+    window.Tripo.flash(
+      document.querySelector("#phoneOtpMessage"),
+      result.ok ? "success" : "error",
+      result.ok ? result.message : result.error
+    );
+    if (result.ok) {
+      setTimeout(() => window.location.reload(), 500);
+    }
   });
 })();
 

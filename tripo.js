@@ -23,6 +23,24 @@
   let cachedAdminStatus = null;
   let cachedUser = undefined;
 
+  const GENERIC_MESSAGES = {
+    default: "Something went wrong. Please try again in a moment.",
+    auth: "We could not complete that sign-in request. Please check your details and try again.",
+    signup: "We could not create your account right now. Please review your details and try again.",
+    session: "Your session has expired. Please log in again.",
+    permission: "Your account is not allowed to do that right now.",
+    verified: "Please verify your email and phone number before using this feature.",
+    createTrip: "We could not publish the trip right now. Please review the details and try again.",
+    joinTrip: "We could not join this trip right now. Please check your verification status and trip eligibility.",
+    profile: "We could not save your profile right now. Please try again.",
+    trips: "We could not load trips right now. Please refresh and try again.",
+    messages: "We could not send that message right now. Please try again.",
+    reviews: "We could not save your review right now. Please try again.",
+    reports: "We could not submit that report right now. Please try again.",
+    verification: "We could not verify that code right now. Please try again.",
+    ai: "The AI assistant is unavailable right now. Please try again shortly."
+  };
+
   purgeLegacyStorage();
 
   function purgeLegacyStorage() {
@@ -61,6 +79,55 @@
     return `${window.location.origin}${path}`;
   }
 
+  function logSystemError(scope, error) {
+    console.error(`[Tripo:${scope}]`, error);
+  }
+
+  function getErrorText(error) {
+    if (!error) {
+      return "";
+    }
+    return String(error.message || error.error_description || error.details || error.hint || error).trim();
+  }
+
+  function userSafeError(error, fallbackKey = "default") {
+    const raw = getErrorText(error).toLowerCase();
+    if (!raw) {
+      return GENERIC_MESSAGES[fallbackKey] || GENERIC_MESSAGES.default;
+    }
+    if (raw.includes("invalid login credentials") || raw.includes("email not confirmed")) {
+      return "Please check your login details and confirm your email before signing in.";
+    }
+    if (raw.includes("jwt") || raw.includes("session")) {
+      return GENERIC_MESSAGES.session;
+    }
+    if (raw.includes("duplicate key")) {
+      return "That action has already been completed.";
+    }
+    if (raw.includes("violates row-level security") || raw.includes("permission denied")) {
+      return GENERIC_MESSAGES.permission;
+    }
+    if (raw.includes("user_matches_trip_visibility")) {
+      return "This trip is limited to a different gender-specific group.";
+    }
+    if (raw.includes("profile_is_verified")) {
+      return GENERIC_MESSAGES.verified;
+    }
+    if (raw.includes("trip_has_space") || raw.includes("trip full")) {
+      return "This trip is already full.";
+    }
+    if (raw.includes("check constraint") || raw.includes("violates check constraint")) {
+      return "Please review the values you entered and try again.";
+    }
+    if (raw.includes("network") || raw.includes("fetch")) {
+      return "We could not reach the server. Please check your connection and try again.";
+    }
+    if (raw.includes("phone verification")) {
+      return GENERIC_MESSAGES.verification;
+    }
+    return GENERIC_MESSAGES[fallbackKey] || GENERIC_MESSAGES.default;
+  }
+
   async function signUp(payload) {
     const ready = ensureConfigured();
     if (!ready.ok) {
@@ -77,13 +144,21 @@
           city: payload.city.trim(),
           phone: payload.phone.trim(),
           gender: payload.gender,
-          emergency_contact: payload.emergencyContact.trim()
+          emergency_contact: payload.emergencyContact.trim(),
+          age_range: payload.ageRange,
+          budget_band: payload.budgetBand,
+          travel_frequency: payload.travelFrequency,
+          personality_style: payload.personalityStyle,
+          adventure_level: Number(payload.adventureLevel),
+          travel_interests: payload.travelInterests.trim(),
+          bio: payload.bio.trim()
         }
       }
     });
 
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("signUp", error);
+      return { ok: false, error: userSafeError(error, "signup") };
     }
 
     cachedProfile = null;
@@ -113,7 +188,8 @@
     });
 
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("signIn", error);
+      return { ok: false, error: userSafeError(error, "auth") };
     }
 
     cachedProfile = null;
@@ -189,12 +265,20 @@
       city: metadata.city || "Not set",
       phone: metadata.phone || "Not set",
       gender: metadata.gender || "Prefer not to say",
-      emergency_contact: metadata.emergency_contact || "Not set"
+      emergency_contact: metadata.emergency_contact || "Not set",
+      age_range: metadata.age_range || "25-34",
+      budget_band: metadata.budget_band || "Budget",
+      travel_frequency: metadata.travel_frequency || "Occasional",
+      personality_style: metadata.personality_style || "Balanced",
+      adventure_level: Number(metadata.adventure_level || 3),
+      travel_interests: metadata.travel_interests || "",
+      bio: metadata.bio || ""
     };
 
     const { error } = await client.from("profiles").upsert(payload, { onConflict: "id" });
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("ensureProfile", error);
+      return { ok: false, error: userSafeError(error, "profile") };
     }
 
     cachedProfile = null;
@@ -220,6 +304,60 @@
     if (user) {
       window.location.href = "dashboard.html";
     }
+  }
+
+  async function getAccessToken() {
+    if (!client) {
+      return null;
+    }
+    const { data } = await client.auth.getSession();
+    return data.session?.access_token || null;
+  }
+
+  async function callSecureApi(path, payload = {}, method = "POST") {
+    const token = await getAccessToken();
+    if (!token) {
+      return { ok: false, error: GENERIC_MESSAGES.session };
+    }
+
+    try {
+      const response = await fetch(path, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: method === "GET" ? undefined : JSON.stringify(payload)
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        logSystemError(`api:${path}`, data);
+        return { ok: false, error: data.error || GENERIC_MESSAGES.ai, data };
+      }
+      return { ok: true, data };
+    } catch (error) {
+      logSystemError(`api:${path}`, error);
+      return { ok: false, error: userSafeError(error, "ai") };
+    }
+  }
+
+  async function getVerificationStatus() {
+    const user = await getCurrentUser();
+    const profile = await getProfile();
+    return {
+      emailVerified: Boolean(user?.email_confirmed_at),
+      phoneVerified: Boolean(profile?.phone_verified),
+      isVerified: Boolean(user?.email_confirmed_at && profile?.phone_verified)
+    };
+  }
+
+  async function requireVerifiedAccount() {
+    const status = await getVerificationStatus();
+    if (!status.isVerified) {
+      return { ok: false, error: GENERIC_MESSAGES.verified };
+    }
+    return { ok: true };
   }
 
   async function mountShell(activePage) {
@@ -317,7 +455,8 @@
 
     const { data, error } = await query;
     if (error) {
-      return { ok: false, error: error.message, data: [] };
+      logSystemError("listTrips", error);
+      return { ok: false, error: userSafeError(error, "trips"), data: [] };
     }
 
     let trips = data || [];
@@ -346,19 +485,20 @@
   }
 
   async function createTrip(payload) {
+    const verified = await requireVerifiedAccount();
+    if (!verified.ok) {
+      return verified;
+    }
     const user = await getCurrentUser();
     const ensured = await ensureProfile();
     if (!ensured.ok) {
-      return {
-        ok: false,
-        error: `Profile setup failed: ${ensured.error}. Re-run the latest supabase-schema.sql, then log out and log back in.`
-      };
+      return { ok: false, error: ensured.error || GENERIC_MESSAGES.profile };
     }
     const profile = await getProfile();
     if (!profile) {
       return {
         ok: false,
-        error: "Your profile row is missing. Re-run the latest supabase-schema.sql and log in again."
+        error: GENERIC_MESSAGES.profile
       };
     }
     const { data, error } = await client
@@ -380,10 +520,8 @@
       .single();
 
     if (error) {
-      return {
-        ok: false,
-        error: `${error.message}. If this is your first trip attempt, re-run the latest supabase-schema.sql in Supabase and ensure your user exists in public.profiles.`
-      };
+      logSystemError("createTrip", error);
+      return { ok: false, error: userSafeError(error, "createTrip") };
     }
 
     return { ok: true, data };
@@ -393,7 +531,8 @@
     const user = await getCurrentUser();
     const { data: trip, error } = await client.from("trips").select("*").eq("id", id).single();
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("getTripDetails", error);
+      return { ok: false, error: "That trip could not be loaded." };
     }
 
     const { data: membershipRows } = await client
@@ -429,6 +568,10 @@
   }
 
   async function joinTrip(id) {
+    const verified = await requireVerifiedAccount();
+    if (!verified.ok) {
+      return verified;
+    }
     const user = await getCurrentUser();
     const profile = await getProfile();
     const { error } = await client.from("trip_members").insert({
@@ -438,7 +581,8 @@
     });
 
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("joinTrip", error);
+      return { ok: false, error: userSafeError(error, "joinTrip") };
     }
 
     return getTripDetails(id);
@@ -447,15 +591,34 @@
   async function addMessage(id, text) {
     const user = await getCurrentUser();
     const profile = await getProfile();
+    const moderation = await callSecureApi("/api/ai/moderate-message", {
+      content: text.trim(),
+      tripId: id
+    });
+
+    if (!moderation.ok) {
+      return moderation;
+    }
+
+    if (moderation.data.blocked) {
+      return {
+        ok: false,
+        error: moderation.data.userMessage || "That message was blocked for safety reasons."
+      };
+    }
+
     const { error } = await client.from("trip_messages").insert({
       trip_id: id,
       author_id: user.id,
       author_name: profile.full_name,
-      content: text.trim()
+      content: text.trim(),
+      moderation_status: moderation.data.flagged ? "flagged" : "clear",
+      moderation_label: moderation.data.label || ""
     });
 
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("addMessage", error);
+      return { ok: false, error: userSafeError(error, "messages") };
     }
 
     return getTripDetails(id);
@@ -476,7 +639,8 @@
     );
 
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("addReview", error);
+      return { ok: false, error: userSafeError(error, "reviews") };
     }
 
     return getTripDetails(id);
@@ -611,6 +775,8 @@
 
   async function updateProfile(payload) {
     const user = await getCurrentUser();
+    const currentProfile = await getProfile();
+    const phoneChanged = String(currentProfile?.phone || "").trim() !== payload.phone.trim();
     const { error } = await client
       .from("profiles")
       .update({
@@ -618,12 +784,22 @@
         city: payload.city.trim(),
         phone: payload.phone.trim(),
         gender: payload.gender,
-        emergency_contact: payload.emergencyContact.trim()
+        emergency_contact: payload.emergencyContact.trim(),
+        phone_verified: phoneChanged ? false : Boolean(currentProfile?.phone_verified),
+        phone_verified_at: phoneChanged ? null : currentProfile?.phone_verified_at || null,
+        age_range: payload.ageRange,
+        budget_band: payload.budgetBand,
+        travel_frequency: payload.travelFrequency,
+        personality_style: payload.personalityStyle,
+        adventure_level: Number(payload.adventureLevel),
+        travel_interests: payload.travelInterests.trim(),
+        bio: payload.bio.trim()
       })
       .eq("id", user.id);
 
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("updateProfile", error);
+      return { ok: false, error: userSafeError(error, "profile") };
     }
 
     await client.auth.updateUser({
@@ -632,7 +808,14 @@
         city: payload.city.trim(),
         phone: payload.phone.trim(),
         gender: payload.gender,
-        emergency_contact: payload.emergencyContact.trim()
+        emergency_contact: payload.emergencyContact.trim(),
+        age_range: payload.ageRange,
+        budget_band: payload.budgetBand,
+        travel_frequency: payload.travelFrequency,
+        personality_style: payload.personalityStyle,
+        adventure_level: Number(payload.adventureLevel),
+        travel_interests: payload.travelInterests.trim(),
+        bio: payload.bio.trim()
       }
     });
 
@@ -673,7 +856,8 @@
   async function listAllProfiles() {
     const { data, error } = await client.from("profiles").select("*").order("created_at", { ascending: false });
     if (error) {
-      return { ok: false, error: error.message, data: [] };
+      logSystemError("listAllProfiles", error);
+      return { ok: false, error: userSafeError(error), data: [] };
     }
     return { ok: true, data: data || [] };
   }
@@ -681,7 +865,8 @@
   async function listAllTrips() {
     const { data, error } = await client.from("trips").select("*").order("created_at", { ascending: false });
     if (error) {
-      return { ok: false, error: error.message, data: [] };
+      logSystemError("listAllTrips", error);
+      return { ok: false, error: userSafeError(error), data: [] };
     }
     return { ok: true, data: data || [] };
   }
@@ -689,7 +874,8 @@
   async function listAllReports() {
     const { data, error } = await client.from("trip_reports").select("*").order("created_at", { ascending: false });
     if (error) {
-      return { ok: false, error: error.message, data: [] };
+      logSystemError("listAllReports", error);
+      return { ok: false, error: userSafeError(error), data: [] };
     }
     return { ok: true, data: data || [] };
   }
@@ -708,7 +894,8 @@
       .select("*")
       .single();
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("adminUpdateProfile", error);
+      return { ok: false, error: userSafeError(error, "profile") };
     }
     cachedProfile = null;
     return { ok: true, data };
@@ -717,7 +904,8 @@
   async function adminDeleteProfile(id) {
     const { error } = await client.from("profiles").delete().eq("id", id);
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("adminDeleteProfile", error);
+      return { ok: false, error: userSafeError(error) };
     }
     return { ok: true };
   }
@@ -729,7 +917,8 @@
   async function adminDeleteReport(id) {
     const { error } = await client.from("trip_reports").delete().eq("id", id);
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("adminDeleteReport", error);
+      return { ok: false, error: userSafeError(error) };
     }
     return { ok: true };
   }
@@ -737,7 +926,8 @@
   async function getTripRecord(id) {
     const { data, error } = await client.from("trips").select("*").eq("id", id).single();
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("getTripRecord", error);
+      return { ok: false, error: "That trip could not be loaded." };
     }
     return { ok: true, data };
   }
@@ -761,7 +951,8 @@
       .single();
 
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("updateTrip", error);
+      return { ok: false, error: userSafeError(error, "createTrip") };
     }
 
     return { ok: true, data };
@@ -770,7 +961,8 @@
   async function deleteTrip(id) {
     const { error } = await client.from("trips").delete().eq("id", id);
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("deleteTrip", error);
+      return { ok: false, error: userSafeError(error) };
     }
     return { ok: true };
   }
@@ -786,10 +978,49 @@
     });
 
     if (error) {
-      return { ok: false, error: error.message };
+      logSystemError("reportTripIssue", error);
+      return { ok: false, error: userSafeError(error, "reports") };
     }
 
     return { ok: true };
+  }
+
+  async function startPhoneVerification(phone) {
+    const response = await callSecureApi("/api/phone/start", {
+      phone: phone.trim()
+    });
+    if (!response.ok) {
+      return response;
+    }
+    return { ok: true, message: response.data.message || "OTP sent to your phone." };
+  }
+
+  async function verifyPhoneOtp(phone, code) {
+    const response = await callSecureApi("/api/phone/verify", {
+      phone: phone.trim(),
+      code: code.trim()
+    });
+    if (!response.ok) {
+      return response;
+    }
+    cachedProfile = null;
+    return { ok: true, message: response.data.message || "Phone verified successfully." };
+  }
+
+  async function getProfileInsights() {
+    return callSecureApi("/api/ai/profile-insights");
+  }
+
+  async function getTripCompatibility(tripId) {
+    return callSecureApi("/api/ai/trip-compatibility", { tripId });
+  }
+
+  async function getTripPlan(prompt, city, budget, duration) {
+    return callSecureApi("/api/ai/trip-plan", { prompt, city, budget, duration });
+  }
+
+  async function getAdminRiskSignals() {
+    return callSecureApi("/api/ai/admin-risk");
   }
 
   window.Tripo = {
@@ -824,6 +1055,14 @@
     requestPasswordReset,
     updatePassword,
     updateProfile,
+    getVerificationStatus,
+    requireVerifiedAccount,
+    startPhoneVerification,
+    verifyPhoneOtp,
+    getProfileInsights,
+    getTripCompatibility,
+    getTripPlan,
+    getAdminRiskSignals,
     getTripRecord,
     updateTrip,
     deleteTrip,

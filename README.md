@@ -1,51 +1,34 @@
 # Tripo
 
-Secure multi-page web app for Tripo with:
+Tripo is a multi-page social travel web app with:
 
-- Supabase Auth for login and registration
-- Password recovery flow
-- Supabase Postgres for app data
-- Row Level Security so users cannot change other users' data
-- Separate pages for auth, dashboard, trip discovery, trip creation, trip detail, and profile
-- Host-only trip edit and delete flow
-- Profile self-update flow
-- Members-only chat and participant visibility
-- Report issue flow and SOS support UI
-- No seeded demo users or demo trips
+- Supabase Auth for account login
+- Supabase Postgres + RLS for protected data access
+- Admin console with user, trip, and report management
+- AI travel matching, safety scoring, chat moderation, trip planning, risk signals, and profile summaries
+- Phone OTP verification through Twilio Verify
+- Vercel-ready serverless APIs for all secret-backed features
 
-## Files added for security
+## What is production-ready in this version
 
-- `config.js`
-- `supabase-schema.sql`
+- Users cannot edit other users' profiles or trips
+- Verified accounts are required before creating or joining trips
+- Women-only trips block male accounts at the database-policy level
+- Men-only trips block female accounts at the database-policy level
+- Raw database/system messages are no longer shown directly to users
+- AI and OTP secrets stay on the server through Vercel environment variables
 
-## Main pages
+## Important security truth
 
-- `login.html`
-- `register.html`
-- `forgot-password.html`
-- `dashboard.html`
-- `trips.html`
-- `create-trip.html`
-- `trip.html`
-- `edit-trip.html`
-- `profile.html`
+Frontend code will always be visible in the browser. That is normal for every web app.
 
-## Important security rule
+What must stay secret has been moved or prepared to move server-side:
 
-Use the Supabase `anon` key in `config.js`.
+- `OPENAI_API_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `TWILIO_AUTH_TOKEN`
 
-Do not put the Supabase `service_role` key in this frontend.
-
-## Setup
-
-1. Create a free Supabase project.
-2. In Supabase, open the SQL Editor.
-3. Run everything from `supabase-schema.sql`.
-4. In `config.js`, replace:
-   - `YOUR_SUPABASE_URL`
-   - `YOUR_SUPABASE_ANON_KEY`
-5. In Supabase Auth settings, set your site URL to your deployed app URL.
-6. If you want email verification, keep confirmation emails enabled.
+Never place those in `config.js`.
 
 ## Local run
 
@@ -53,37 +36,133 @@ Do not put the Supabase `service_role` key in this frontend.
 py -m http.server 8000
 ```
 
-Then open `http://localhost:8000`.
+Open `http://localhost:8000`.
 
-## Free deployment
+## Supabase setup
 
-### Netlify
+1. Create a Supabase project.
+2. Open `SQL Editor`.
+3. Run the full `supabase-schema.sql` file in a fresh blank query tab.
+4. Put your public values in `config.js`:
+   - `supabaseUrl`
+   - `supabaseAnonKey`
+5. In `Authentication -> URL Configuration`, add:
+   - `http://localhost:8000/**`
+   - your Vercel production URL
+   - your custom domain URL
+6. Add your admin email:
 
-1. Create a free Netlify account.
-2. Drag this folder into Netlify manual deploy.
-3. After deploy, copy the live URL.
-4. Add that URL into Supabase Auth site URL and redirect URL settings.
-5. Re-deploy if you changed `config.js`.
+```sql
+insert into public.admin_users (email)
+values ('you@example.com')
+on conflict (email) do nothing;
+```
 
-### GitHub Pages
+## Twilio phone OTP setup
 
-1. Push this folder to a GitHub repository.
-2. Enable GitHub Pages from `main` and `/root`.
-3. Copy the live URL.
-4. Add that URL into Supabase Auth site URL and redirect URL settings.
-5. Commit your final `config.js` values and redeploy.
+Tripo now expects phone verification before users create or join trips.
 
-## Security behavior in this version
+1. Create a Twilio account.
+2. Open `Verify`.
+3. Create a Verify Service.
+4. In Vercel project environment variables, add:
+   - `TWILIO_ACCOUNT_SID`
+   - `TWILIO_AUTH_TOKEN`
+   - `TWILIO_VERIFY_SERVICE_SID`
 
-- Only authenticated users can access app pages.
-- Only the profile owner can read and update their profile row.
-- Only the trip host can update or delete their trip.
-- Only members can read trip chat.
-- Only members and host can read participant lists.
-- Only the authenticated user can create their own memberships, messages, and reviews.
-- Reports are stored per authenticated reporter.
-- Demo users, demo sessions, and demo trips are removed.
+## OpenAI setup
 
-## Note
+To enable the AI features on production:
 
-This project is now structured for real deployment security, but it still needs your own Supabase project configured before it will run end-to-end.
+1. Add `OPENAI_API_KEY` in Vercel.
+2. Optionally add `OPENAI_MODEL`.
+
+Without an OpenAI key, Tripo falls back to rule-based matching and moderation logic for core safety behavior.
+
+## Vercel deployment
+
+### 1. Import the GitHub repo
+
+1. Open [Vercel](https://vercel.com/).
+2. Click `Add New...` -> `Project`.
+3. Import `kb1218/tripo`.
+4. Framework preset:
+   - `Other`
+5. Build command:
+   - leave empty
+6. Output directory:
+   - leave empty
+
+Vercel docs for Git deployments: [Deployments overview](https://vercel.com/docs/deployments/overview)
+
+### 2. Add environment variables in Vercel
+
+Add these in `Project Settings -> Environment Variables`:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_VERIFY_SERVICE_SID`
+
+### 3. Redeploy
+
+After adding env vars, redeploy the project once from Vercel.
+
+## Connect `trip0.in` from Hostinger to Vercel
+
+Vercel’s current custom-domain flow is documented here: [Set up custom domain](https://vercel.com/docs/domains/set-up-custom-domain)
+
+Recommended setup:
+
+1. In Vercel, open your Tripo project.
+2. Go to `Settings -> Domains`.
+3. Add:
+   - `trip0.in`
+   - `www.trip0.in`
+4. Vercel will show the DNS records you need.
+
+Typical DNS pattern from Vercel docs:
+
+- Apex domain like `trip0.in`:
+  - `A` record to `76.76.21.21`
+- `www` subdomain:
+  - `CNAME` to the Vercel-provided target
+
+Then in Hostinger:
+
+1. Open `Domains`
+2. Open `DNS / Zone Editor`
+3. Remove old conflicting records for `@` or `www`
+4. Add the exact records Vercel shows
+5. Save
+
+Once DNS propagates, Vercel will provision HTTPS automatically.
+
+## Final production checklist
+
+1. Supabase schema applied
+2. `config.js` updated with public Supabase values
+3. Vercel environment variables added
+4. Supabase redirect URLs updated for:
+   - localhost
+   - Vercel URL
+   - `https://trip0.in`
+   - `https://www.trip0.in`
+5. Twilio Verify configured
+6. OpenAI key added
+7. Admin email inserted into `admin_users`
+
+## Investor prep next
+
+Once production is stable, prepare:
+
+- live demo URL
+- product demo video
+- 10-slide deck
+- traction sheet
+- 1-city launch metrics
+- trust and safety narrative

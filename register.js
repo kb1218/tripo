@@ -22,6 +22,13 @@
       phone: formData.get("phone"),
       gender: formData.get("gender"),
       emergencyContact: formData.get("emergencyContact"),
+      ageRange: formData.get("ageRange"),
+      budgetBand: formData.get("budgetBand"),
+      travelFrequency: formData.get("travelFrequency"),
+      personalityStyle: formData.get("personalityStyle"),
+      adventureLevel: formData.get("adventureLevel"),
+      travelInterests: formData.get("travelInterests"),
+      bio: formData.get("bio"),
       password: formData.get("password")
     });
 
@@ -31,13 +38,20 @@
     }
 
     if (result.requiresEmailVerification) {
-      window.Tripo.flash(registerMessage, "success", result.message);
+      window.Tripo.flash(registerMessage, "success", `${result.message} After your first login, verify your phone with OTP from the Profile page.`);
       return;
     }
 
-    window.Tripo.flash(registerMessage, "success", "Account created. Opening your dashboard.");
+    const phoneVerification = await window.Tripo.startPhoneVerification(formData.get("phone"));
+    window.Tripo.flash(
+      registerMessage,
+      "success",
+      phoneVerification.ok
+        ? "Account created. We sent a phone OTP too. Complete verification from your profile page."
+        : "Account created. Open your profile page after login to verify your phone number."
+    );
     setTimeout(() => {
-      window.location.href = "dashboard.html";
+      window.location.href = "profile.html?verifyPhone=1";
     }, 400);
   });
 })();

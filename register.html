@@ -63,10 +63,64 @@
             <input type="text" name="emergencyContact" placeholder="Parent / Friend name + number" required>
           </label>
         </div>
+        <div class="field-grid">
+          <label>
+            Age range
+            <select name="ageRange" required>
+              <option value="18-24">18-24</option>
+              <option value="25-34" selected>25-34</option>
+              <option value="35-44">35-44</option>
+              <option value="45+">45+</option>
+            </select>
+          </label>
+          <label>
+            Budget style
+            <select name="budgetBand" required>
+              <option value="Budget">Budget</option>
+              <option value="Mid-range">Mid-range</option>
+              <option value="Premium">Premium</option>
+            </select>
+          </label>
+        </div>
+        <div class="field-grid">
+          <label>
+            Travel frequency
+            <select name="travelFrequency" required>
+              <option value="Rarely">Rarely</option>
+              <option value="Occasional" selected>Occasional</option>
+              <option value="Monthly">Monthly</option>
+              <option value="Frequent">Frequent</option>
+            </select>
+          </label>
+          <label>
+            Personality style
+            <select name="personalityStyle" required>
+              <option value="Calm">Calm</option>
+              <option value="Balanced" selected>Balanced</option>
+              <option value="Outgoing">Outgoing</option>
+              <option value="Spontaneous">Spontaneous</option>
+            </select>
+          </label>
+        </div>
+        <div class="field-grid">
+          <label>
+            Adventure level
+            <input type="range" name="adventureLevel" min="1" max="5" value="3">
+          </label>
+          <label>
+            Travel interests
+            <input type="text" name="travelInterests" placeholder="Trekking, food, photography" required>
+          </label>
+        </div>
+        <label>
+          Short bio
+          <textarea name="bio" rows="3" placeholder="Tell future travel buddies what kind of traveler you are." required></textarea>
+        </label>
         <label>
           Password
           <input type="password" name="password" placeholder="Create a password" required minlength="6">
         </label>
+        <p class="auth-copy" style="margin:0;">Email verification is required. Phone OTP verification becomes available inside your account right after your first login.</p>
         <button class="button" type="submit">Create account</button>
       </form>
 

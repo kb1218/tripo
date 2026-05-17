@@ -8,6 +8,17 @@ create table if not exists public.profiles (
   phone text not null,
   gender text not null,
   emergency_contact text not null,
+  phone_verified boolean not null default false,
+  phone_verified_at timestamptz,
+  age_range text not null default '25-34',
+  budget_band text not null default 'Budget',
+  travel_frequency text not null default 'Occasional',
+  personality_style text not null default 'Balanced',
+  adventure_level integer not null default 3 check (adventure_level between 1 and 5),
+  travel_interests text not null default '',
+  bio text not null default '',
+  ai_summary text not null default '',
+  safety_score integer not null default 50 check (safety_score between 0 and 100),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -47,8 +58,24 @@ create table if not exists public.trip_messages (
   author_id uuid not null references public.profiles(id) on delete cascade,
   author_name text not null,
   content text not null check (char_length(trim(content)) > 0 and char_length(content) <= 1000),
+  moderation_status text not null default 'clear' check (moderation_status in ('clear', 'flagged', 'blocked')),
+  moderation_label text not null default '',
   created_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists phone_verified boolean not null default false;
+alter table public.profiles add column if not exists phone_verified_at timestamptz;
+alter table public.profiles add column if not exists age_range text not null default '25-34';
+alter table public.profiles add column if not exists budget_band text not null default 'Budget';
+alter table public.profiles add column if not exists travel_frequency text not null default 'Occasional';
+alter table public.profiles add column if not exists personality_style text not null default 'Balanced';
+alter table public.profiles add column if not exists adventure_level integer not null default 3;
+alter table public.profiles add column if not exists travel_interests text not null default '';
+alter table public.profiles add column if not exists bio text not null default '';
+alter table public.profiles add column if not exists ai_summary text not null default '';
+alter table public.profiles add column if not exists safety_score integer not null default 50;
+alter table public.trip_messages add column if not exists moderation_status text not null default 'clear';
+alter table public.trip_messages add column if not exists moderation_label text not null default '';
 
 create table if not exists public.trip_reviews (
   id uuid primary key default gen_random_uuid(),
@@ -100,7 +127,14 @@ begin
     city,
     phone,
     gender,
-    emergency_contact
+    emergency_contact,
+    age_range,
+    budget_band,
+    travel_frequency,
+    personality_style,
+    adventure_level,
+    travel_interests,
+    bio
   )
   values (
     new.id,
@@ -108,7 +142,14 @@ begin
     coalesce(new.raw_user_meta_data ->> 'city', 'Not set'),
     coalesce(new.raw_user_meta_data ->> 'phone', 'Not set'),
     coalesce(new.raw_user_meta_data ->> 'gender', 'Not set'),
-    coalesce(new.raw_user_meta_data ->> 'emergency_contact', 'Not set')
+    coalesce(new.raw_user_meta_data ->> 'emergency_contact', 'Not set'),
+    coalesce(new.raw_user_meta_data ->> 'age_range', '25-34'),
+    coalesce(new.raw_user_meta_data ->> 'budget_band', 'Budget'),
+    coalesce(new.raw_user_meta_data ->> 'travel_frequency', 'Occasional'),
+    coalesce(new.raw_user_meta_data ->> 'personality_style', 'Balanced'),
+    greatest(1, least(5, coalesce((new.raw_user_meta_data ->> 'adventure_level')::integer, 3))),
+    coalesce(new.raw_user_meta_data ->> 'travel_interests', ''),
+    coalesce(new.raw_user_meta_data ->> 'bio', '')
   )
   on conflict (id) do nothing;
 
@@ -229,6 +270,47 @@ as $trip_has_space$
       ) < t.seats
   );
 $trip_has_space$;
+
+create or replace function private.user_matches_trip_visibility(target_trip_id uuid, joining_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public, private
+as $user_matches_trip_visibility$
+  select exists (
+    select 1
+    from public.trips t
+    join public.profiles p on p.id = joining_user_id
+    where t.id = target_trip_id
+      and (
+        t.visibility = 'mixed'
+        or (
+          t.visibility = 'women-only'
+          and lower(coalesce(p.gender, '')) in ('woman', 'women', 'female')
+        )
+        or (
+          t.visibility = 'men-only'
+          and lower(coalesce(p.gender, '')) in ('man', 'men', 'male')
+        )
+      )
+  );
+$user_matches_trip_visibility$;
+
+create or replace function private.profile_is_verified(target_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public, auth, private
+as $profile_is_verified$
+  select exists (
+    select 1
+    from public.profiles p
+    join auth.users u on u.id = p.id
+    where p.id = target_user_id
+      and p.phone_verified = true
+      and u.email_confirmed_at is not null
+  );
+$profile_is_verified$;
 
 create or replace function private.is_admin()
 returns boolean
@@ -361,7 +443,10 @@ create policy "trips_insert_own"
 on public.trips
 for insert
 to authenticated
-with check ((select auth.uid()) = host_id);
+with check (
+  (select auth.uid()) = host_id
+  and (select private.profile_is_verified(host_id))
+);
 
 drop policy if exists "trips_update_own" on public.trips;
 create policy "trips_update_own"
@@ -417,6 +502,8 @@ to authenticated
 with check (
   (select auth.uid()) = user_id
   and (select private.trip_has_space(trip_members.trip_id))
+  and (select private.user_matches_trip_visibility(trip_members.trip_id, trip_members.user_id))
+  and (select private.profile_is_verified(trip_members.user_id))
 );
 
 drop policy if exists "trip_members_delete_self_or_host" on public.trip_members;

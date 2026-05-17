@@ -10,7 +10,7 @@
         <div>
           <p class="eyebrow">Discover</p>
           <h2>Browse local trips</h2>
-          <p>Only authenticated users can browse, and only the trip owner can modify a trip.</p>
+          <p>Only authenticated users can browse, and only verified users can create or join trips.</p>
         </div>
         <a class="button" href="create-trip.html">Create trip</a>
       </div>
@@ -67,7 +67,7 @@ async function renderTrips() {
 
   results.innerHTML = tripResult.data.length
     ? tripResult.data.map(renderTripCard).join("")
-    : `<div class="empty-state"><h3>No trips yet</h3><p>The app is clean now. Create the first trip.</p></div>`;
+    : `<div class="empty-state"><h3>No trips yet</h3><p>Create the first trip from a verified account.</p></div>`;
 }
 
 function renderTripCard(trip) {
@@ -81,7 +81,7 @@ function renderTripCard(trip) {
       <h3 class="trip-title">${window.Tripo.escapeHtml(trip.title)}</h3>
       <p>${window.Tripo.escapeHtml(trip.description)}</p>
       <div class="trip-meta-row">
-        <span class="muted-line">${window.Tripo.formatDate(trip.trip_date)} • ${window.Tripo.escapeHtml(trip.city)} to ${window.Tripo.escapeHtml(trip.destination)}</span>
+        <span class="muted-line">${window.Tripo.formatDate(trip.trip_date)} &bull; ${window.Tripo.escapeHtml(trip.city)} to ${window.Tripo.escapeHtml(trip.destination)}</span>
         <strong>${window.Tripo.escapeHtml(trip.host_name)}</strong>
       </div>
       <div class="trip-actions">

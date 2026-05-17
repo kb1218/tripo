@@ -16,21 +16,31 @@
 })();
 
 async function renderTripPage(tripId, mount) {
-  const result = await window.Tripo.getTripDetails(tripId);
+  const [result, compatibilityResult] = await Promise.all([
+    window.Tripo.getTripDetails(tripId),
+    window.Tripo.getTripCompatibility(tripId)
+  ]);
 
   if (!result.ok) {
-    mount.innerHTML = `<section class="app-panel empty-state"><h2>Trip not found</h2><p>${window.Tripo.escapeHtml(result.error)}</p></section>`;
+    mount.innerHTML = `<section class="app-panel empty-state"><h2>Trip not found</h2><p>This trip could not be opened right now.</p></section>`;
     return;
   }
 
   const { trip, isMember, participants, messages, reviews } = result.data;
   const user = await window.Tripo.getCurrentUser();
   const profile = await window.Tripo.getProfile();
+  const verification = await window.Tripo.getVerificationStatus();
+  const compatibility = compatibilityResult.ok ? compatibilityResult.data : {};
   const isHost = trip.host_id === user.id;
   const chipClass = trip.visibility === "women-only" ? "chip-women" : trip.visibility === "men-only" ? "chip-men" : "chip-safe";
   const seatsLeft = Math.max(trip.seats - participants.length, 0);
   const emergencyPhone = window.Tripo.extractPhoneNumber(profile?.emergency_contact || "");
   const showLocationShare = profile?.gender === "Woman" || trip.visibility === "women-only";
+  const joinBlockedReason = !verification.isVerified
+    ? "Verify your email and phone number first."
+    : compatibility.joinEligible === false
+      ? compatibility.reason || "You are not eligible for this trip."
+      : "";
 
   mount.innerHTML = `
     <section class="hero-banner">
@@ -40,6 +50,7 @@ async function renderTripPage(tripId, mount) {
       <div class="hero-actions">
         <span class="chip chip-interest">${window.Tripo.escapeHtml(trip.interest)}</span>
         <span class="chip ${chipClass}">${window.Tripo.visibilityLabel(trip.visibility)}</span>
+        <span class="chip chip-safe">${window.Tripo.escapeHtml(String(compatibility.compatibilityScore ?? "--"))}% compatible</span>
       </div>
     </section>
 
@@ -50,8 +61,9 @@ async function renderTripPage(tripId, mount) {
         <div class="detail-meta-row"><strong>Date</strong><span>${window.Tripo.formatDate(trip.trip_date)}</span></div>
         <div class="detail-meta-row"><strong>Vibe</strong><span>${window.Tripo.escapeHtml(trip.vibe)}</span></div>
         <div class="detail-meta-row"><strong>Seats left</strong><span>${seatsLeft}</span></div>
+        ${joinBlockedReason && !isMember && !isHost ? `<div class="flash flash-error">${window.Tripo.escapeHtml(joinBlockedReason)}</div>` : ""}
         <div class="split-actions">
-          <button id="joinTripBtn" class="button" type="button" ${isMember || seatsLeft === 0 ? "disabled" : ""}>
+          <button id="joinTripBtn" class="button" type="button" ${isMember || seatsLeft === 0 || Boolean(joinBlockedReason) ? "disabled" : ""}>
             ${isHost ? "You host this trip" : isMember ? "Already joined" : seatsLeft === 0 ? "Trip full" : "Join this trip"}
           </button>
           <button id="reviewTripBtn" class="button button-secondary" type="button" ${isMember ? "" : "disabled"}>Add review</button>
@@ -60,8 +72,24 @@ async function renderTripPage(tripId, mount) {
         </div>
       </article>
 
-      <article class="app-panel">
-        <p class="eyebrow">Privacy</p>
+      <article class="app-panel stack-panel">
+        <p class="eyebrow">AI matching</p>
+        <h3>${window.Tripo.escapeHtml(compatibility.headline || "Group compatibility insights")}</h3>
+        <p>${window.Tripo.escapeHtml(compatibility.reason || "Tripo is checking how well this group matches your style, budget, and trip vibe.")}</p>
+        <div class="list-stack">
+          ${(compatibility.suggestedBuddies || []).map((buddy) => `<div class="list-row"><span>${window.Tripo.escapeHtml(buddy.name)}</span><strong>${window.Tripo.escapeHtml(String(buddy.score))}% match</strong></div>`).join("") || `<div class="list-row"><span>Match suggestions</span><strong>Available after more verified activity</strong></div>`}
+        </div>
+      </article>
+    </section>
+
+    <section class="detail-grid">
+      <article class="app-panel stack-panel">
+        <div class="review-row">
+          <div>
+            <p class="eyebrow">Privacy</p>
+            <h3>Participant list</h3>
+          </div>
+        </div>
         ${
           isMember
             ? `
@@ -76,6 +104,19 @@ async function renderTripPage(tripId, mount) {
               </div>
             `
         }
+      </article>
+
+      <article class="app-panel stack-panel">
+        <div class="review-row">
+          <div>
+            <p class="eyebrow">Ratings</p>
+            <h3>${window.Tripo.averageRating(reviews)} average</h3>
+          </div>
+          <span>${reviews.length} reviews</span>
+        </div>
+        <div class="list-stack">
+          ${reviews.length ? reviews.map(renderReview).join("") : `<div class="empty-state"><p>No reviews yet.</p></div>`}
+        </div>
       </article>
     </section>
 
@@ -106,21 +147,6 @@ async function renderTripPage(tripId, mount) {
       <article class="app-panel stack-panel">
         <div class="review-row">
           <div>
-            <p class="eyebrow">Ratings</p>
-            <h3>${window.Tripo.averageRating(reviews)} average</h3>
-          </div>
-          <span>${reviews.length} reviews</span>
-        </div>
-        <div class="list-stack">
-          ${reviews.length ? reviews.map(renderReview).join("") : `<div class="empty-state"><p>No reviews yet.</p></div>`}
-        </div>
-      </article>
-    </section>
-
-    <section class="detail-grid">
-      <article class="app-panel stack-panel">
-        <div class="review-row">
-          <div>
             <p class="eyebrow">Safety</p>
             <h3>Emergency support</h3>
           </div>
@@ -137,20 +163,20 @@ async function renderTripPage(tripId, mount) {
           ${showLocationShare ? `<div class="list-row"><span>Women safety</span><button id="shareLocationBtn" class="button-link" type="button">Share location on WhatsApp</button></div>` : ""}
         </div>
       </article>
+    </section>
 
-      <article class="app-panel stack-panel">
-        <div class="review-row">
-          <div>
-            <p class="eyebrow">Report</p>
-            <h3>Report an issue</h3>
-          </div>
+    <section class="app-panel stack-panel">
+      <div class="review-row">
+        <div>
+          <p class="eyebrow">Report</p>
+          <h3>Report an issue</h3>
         </div>
-        <form id="reportForm" class="stack-form">
-          <label>Describe the issue<textarea name="issue" rows="4" placeholder="Describe the safety or behavior issue." required></textarea></label>
-          <button class="button button-secondary" type="submit">Submit report</button>
-        </form>
-        <div id="reportMessage"></div>
-      </article>
+      </div>
+      <form id="reportForm" class="stack-form">
+        <label>Describe the issue<textarea name="issue" rows="4" placeholder="Describe the safety or behavior issue." required></textarea></label>
+        <button class="button button-secondary" type="submit">Submit report</button>
+      </form>
+      <div id="reportMessage"></div>
     </section>
   `;
 
@@ -175,6 +201,7 @@ async function renderTripPage(tripId, mount) {
       window.Tripo.showToast(messageResult.error);
       return;
     }
+    input.value = "";
     await renderTripPage(tripId, mount);
   });
 

@@ -4,6 +4,7 @@
   }
 
   const mount = await window.Tripo.mountShell("create-trip");
+  const verification = await window.Tripo.getVerificationStatus();
   mount.innerHTML = `
     <section class="app-panel page-section">
       <div class="section-head">
@@ -13,6 +14,11 @@
           <p>Create your trip as the host and manage it from your own account.</p>
         </div>
       </div>
+      ${
+        verification.isVerified
+          ? ""
+          : `<div class="flash flash-error">Trip creation unlocks only after email and phone verification. Finish it from your profile page.</div>`
+      }
 
       <form id="createTripForm" class="stack-form">
         <div class="form-grid">
@@ -47,7 +53,7 @@
         </div>
         <label>Description<textarea name="description" rows="5" placeholder="Describe the plan, pace, and who should join." required></textarea></label>
         <div class="split-actions">
-          <button class="button" type="submit">Publish trip</button>
+          <button class="button" type="submit" ${verification.isVerified ? "" : "disabled"}>Publish trip</button>
           <a class="button button-ghost" href="trips.html">Back to discover</a>
         </div>
       </form>

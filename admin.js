@@ -20,6 +20,7 @@
     profiles: [],
     trips: [],
     reports: [],
+    risks: [],
     selectedProfileId: null,
     selectedTripId: null
   };
@@ -29,15 +30,17 @@
 })();
 
 async function loadAdminData(state) {
-  const [profilesResult, tripsResult, reportsResult] = await Promise.all([
+  const [profilesResult, tripsResult, reportsResult, riskResult] = await Promise.all([
     window.Tripo.listAllProfiles(),
     window.Tripo.listAllTrips(),
-    window.Tripo.listAllReports()
+    window.Tripo.listAllReports(),
+    window.Tripo.getAdminRiskSignals()
   ]);
 
   state.profiles = profilesResult.ok ? profilesResult.data : [];
   state.trips = tripsResult.ok ? tripsResult.data : [];
   state.reports = reportsResult.ok ? reportsResult.data : [];
+  state.risks = riskResult.ok ? riskResult.data.items || [] : [];
 
   if (!state.selectedProfileId && state.profiles.length) {
     state.selectedProfileId = state.profiles[0].id;
@@ -62,6 +65,18 @@ function renderAdmin(state, mount) {
       <article class="mini-card"><span class="metric">${state.profiles.length}</span><p>Total users</p></article>
       <article class="mini-card"><span class="metric">${state.trips.length}</span><p>Total trips</p></article>
       <article class="mini-card"><span class="metric">${state.reports.length}</span><p>Total reports</p></article>
+    </section>
+
+    <section class="app-panel">
+      <p class="eyebrow">AI risk watchlist</p>
+      <div class="list-stack">
+        ${state.risks.length ? state.risks.map((risk) => `
+          <div class="list-row">
+            <span>${window.Tripo.escapeHtml(risk.label)}</span>
+            <strong>${window.Tripo.escapeHtml(risk.level)}</strong>
+          </div>
+        `).join("") : `<div class="empty-state"><p>No active AI risk flags right now.</p></div>`}
+      </div>
     </section>
 
     <section class="detail-grid">

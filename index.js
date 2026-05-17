@@ -12,10 +12,11 @@
     const user = await window.Tripo.getCurrentUser();
     window.location.href = user ? "dashboard.html" : "login.html";
   } catch (error) {
+    console.error("[Tripo:index]", error);
     document.querySelector(".auth-shell").innerHTML = `
       <img class="auth-logo" src="assets/tripo-logo.svg" alt="Tripo logo">
       <h1>Startup error</h1>
-      <p>${String(error && error.message ? error.message : error)}</p>
+      <p>We could not start Tripo right now. Please refresh the page or try again in a moment.</p>
     `;
   }
 })();
